@@ -6,8 +6,12 @@ import librosa
 import scipy.signal
 
 #data_path_&_class_file
-data_path = '../warblr_data' # data in wav format
-class_file = np.loadtxt('../wblr_data.txt',dtype='str')
+data_path = '../warblr_data' # path to data in wav format
+metadata_path = '../wblr_data.txt'
+class_file = np.loadtxt(metadata_path, delimiter=',',dtype='str') # file with metadata in format: ID_OF_WAV,hasBird
+
+saveFeatureTo = './feature_extracted/' # path where to save the extrated features
+baseName = 'BAD_wblr' # base file name for feature and label
 
 #class_name_&_class_label
 class_names = class_file[:,0]
@@ -20,6 +24,7 @@ label_file = []
 def melspectrogram_feature_extract(path,class_names,class_labels):
    for i in range(len(class_names)):
       [fs, x] = wavfile.read(os.path.join(data_path,class_names[i])+".wav") # read wav file (fs = 44.1 kHz)
+      x = x.astype(np.float32)
       D = librosa.stft(x,882*2,882,882*2,scipy.signal.hamming) # STFT computation (fft_points = 882*2, overlap= 50%, analysis_window=40ms)
       D = np.abs(D)**2 # magnitude spectra
       S = librosa.feature.melspectrogram(S=D,n_mels=40) # mel bands (40)
@@ -45,7 +50,9 @@ melspectrogram_feature_extract(data_path,class_names,class_labels)
 feature_file = np.array(feature_file)
 label_file = np.array(label_file)
 feature_file = np.reshape(feature_file,(len(class_names),40,500,1))
-np.save('BAD_wblr_feature',feature_file)
-np.save('BAD_wblr_label',label_file)
+if not os.path.exists(saveFeatureTo):
+    os.mkdir(saveFeatureTo)
+np.save(saveFeatureTo+baseName+'_feature',feature_file)
+np.save(saveFeatureTo+baseName+'_label',label_file)
 
 #### similarly, using this function extract melspec features for other classes and concatenate all the features  ########

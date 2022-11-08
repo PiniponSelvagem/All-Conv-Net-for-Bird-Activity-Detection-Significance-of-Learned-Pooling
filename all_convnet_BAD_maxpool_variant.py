@@ -1,7 +1,7 @@
 from keras.models import Sequential
 from keras.layers.core import Flatten, Dense, Dropout, Reshape, Activation
 from keras.layers.convolutional import Conv2D, MaxPooling2D, ZeroPadding2D, MaxPooling1D, Conv1D
-from keras.layers.normalization import BatchNormalization
+from tensorflow.keras.layers import BatchNormalization
 from keras.utils import to_categorical
 from sklearn.model_selection import train_test_split
 from keras.callbacks import ModelCheckpoint
@@ -11,6 +11,16 @@ from keras.optimizers import Adadelta, RMSprop,SGD,Adam
 import keras
 
 initializer = keras.initializers.RandomNormal(mean=0.0, stddev=0.05, seed=2)
+
+pathToTrainFeature = './feature_extracted/BAD_wblr_feature.npy'
+pathToTrainLabel = './feature_extracted/BAD_wblr_label.npy'
+
+saveModelTo = './model/' # path where to save generated model and csv file with results
+modelName = 'allconvnet_BAD_maxpool_variant.h5'
+resultName = 'allconvnet_BAD_maxpool_variant.csv'
+
+pathToTestMetadata = './tester/ff1010bird_metadata.txt'
+pathToTestFeature = './tester/ff1010bird_feature.npy'
 
 
 model = Sequential()
@@ -71,11 +81,11 @@ model.summary()
 
 #train_data
 classes = 2
-feature = np.load('../feature_train.npy')
-label = np.load('../label_train.npy')
+feature = np.load(pathToTrainFeature)
+label = np.load(pathToTrainLabel)
 label = to_categorical(label, 2)
 opt = Adam(decay = 1e-6)
-x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.00, shuffle=True)
+x_train, x_test, y_train, y_test = train_test_split(feature, label, test_size=0.50, shuffle=True)
 
 # compile model
 model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
@@ -84,17 +94,19 @@ model.compile(loss='binary_crossentropy', optimizer=opt, metrics=['accuracy'])
 hist = model.fit(x_train, y_train, epochs=50, batch_size=32,verbose=2)
 
 #save_model
-model.save('all_convnet_BAD_maxpool_variant.h5') 
+if not os.path.exists(saveModelTo):
+    os.mkdir(saveModelTo)
+model.save(saveModelTo+modelName)
 
 #test_data
-test_class_file = np.loadtxt('../test_class_file.txt',dtype='str')
-test_data = np.load('../feature_test.npy')
+test_class_file = np.loadtxt(pathToTestMetadata, delimiter=',', dtype='str') # test_class_file[:,0] -> ID, test_class_file[:,1] -> real value of hasBird
+test_data = np.load(pathToTestFeature)
 
 #test_label_predict
-clas_labels = model.predict_classes(test_data, batch_size=1, verbose=0)
-pred_probs = model.predict_proba(test_data, batch_size=1, verbose=0)
+predict_x = model.predict(test_data) 
+classes_x = np.argmax(predict_x,axis=1)
 
 #save_test_labels_&_probs
 test_class_file=np.array(test_class_file)
-pred_probs=np.array(pred_probs)
-np.savetxt('allconvnet_BAD_maxpool_variant',np.c_[class_file,pred_probs[:,0],pred_probs[:,1]],fmt='%s')
+pred_probs=np.array(classes_x)
+np.savetxt(saveModelTo+resultName,np.c_[test_class_file[:,0],pred_probs[:]],fmt='%s', delimiter=',')
